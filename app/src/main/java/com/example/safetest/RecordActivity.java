@@ -21,6 +21,8 @@ import com.example.safetest.mediaprojection.interfaces.MediaProjectionNotificati
 import com.example.safetest.mediaprojection.interfaces.MediaRecorderCallback;
 import com.example.safetest.mediaprojection.utils.MediaProjectionHelper;
 import com.example.safetest.screen.NotificationHelper;
+import com.hjq.permissions.Permission;
+import com.hjq.permissions.XXPermissions;
 
 import java.io.File;
 
@@ -40,7 +42,14 @@ public class RecordActivity extends AppCompatActivity {
         animation.setInterpolator(lin);
         img.startAnimation(animation);
 
-        findViewById(R.id.btn_start).setOnClickListener(view -> doServiceStart());
+        findViewById(R.id.btn_start).setOnClickListener(view -> {
+            boolean granted = XXPermissions.isGranted(this, Permission.Group.STORAGE);
+            if (!granted) {
+                XXPermissions.with(this).permission(Permission.Group.STORAGE).request(null);
+                return;
+            }
+            doServiceStart();
+        });
 
         findViewById(R.id.btn_end).setOnClickListener(view -> doServiceStop());
 

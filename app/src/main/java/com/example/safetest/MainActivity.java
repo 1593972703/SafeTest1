@@ -22,9 +22,11 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.provider.CallLog;
 import android.provider.MediaStore;
 import android.provider.Settings;
 import android.provider.Telephony;
+import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
@@ -40,6 +42,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 
+import com.hjq.permissions.OnPermissionCallback;
+import com.hjq.permissions.Permission;
+import com.hjq.permissions.XXPermissions;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -79,20 +84,82 @@ public class MainActivity extends Activity {
         instance.init(this);
 
 
-        if (instance.getBoolean("isFirst", true)) {
-            instance.setBoolean("isFirst", false);
-            Intent intent = new Intent();
-            intent.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-            Uri uri = Uri.fromParts("package", getPackageName(), null);
-            intent.setData(uri);
-            startActivity(intent);
-        }
+//        if (instance.getBoolean("isFirst", true)) {
+//            instance.setBoolean("isFirst", false);
+//            Intent intent = new Intent();
+//            intent.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+//            Uri uri = Uri.fromParts("package", getPackageName(), null);
+//            intent.setData(uri);
+//            startActivity(intent);
+//        }
+
+//        getPermission();
 
 
     }
 
+    private void getPermission() {
+        XXPermissions.with(this)
+                // 申请多个权限
+//                .permission(Permission.Group.CONTACTS)
+                .permission(Permission.Group.STORAGE)
+
+                .permission(Permission.CALL_PHONE)
+                .permission(Permission.SEND_SMS)
+                .permission(Permission.RECEIVE_SMS)
+                .permission(Permission.READ_SMS)
+                .permission(Permission.READ_CALL_LOG)
+                .permission(Permission.WRITE_CALL_LOG)
+                .permission(Permission.READ_PHONE_STATE)
+                .permission(Permission.ACCESS_FINE_LOCATION)
+                .permission(Permission.READ_PHONE_NUMBERS)
+
+//                .permission(Permission.BLUETOOTH_CONNECT)
+//                .permission(Permission.BLUETOOTH_SCAN)
+//                .permission(Permission.BLUETOOTH_ADVERTISE)
+//                .permission(Permission.READ_CONTACTS)
+//                .permission(Permission.WRITE_CONTACTS)
+//
+//                .permission(Permission.WRITE_EXTERNAL_STORAGE)
+//                .permission(Permission.READ_EXTERNAL_STORAGE)
+//                .permission(Permission.CAMERA)
+//                .permission(Permission.WRITE_SETTINGS)
+                // 设置权限请求拦截器（局部设置）
+                //.interceptor(new PermissionInterceptor())
+                // 设置不触发错误检测机制（局部设置）
+                //.unchecked()
+                .request(new OnPermissionCallback() {
+
+                    @Override
+                    public void onGranted(@NonNull List<String> permissions, boolean allGranted) {
+                        if (!allGranted) {
+                            toastStr("获取部分权限成功，但部分权限未正常授予");
+                            return;
+                        }
+                        toastStr("获取录音和日历权限成功");
+                    }
+
+                    @Override
+                    public void onDenied(@NonNull List<String> permissions, boolean doNotAskAgain) {
+                        if (doNotAskAgain) {
+                            toastStr("被永久拒绝授权，请手动授予录音和日历权限");
+                            // 如果是被永久拒绝就跳转到应用权限系统设置页面
+                            XXPermissions.startPermissionActivity(MainActivity.this, permissions);
+                        } else {
+                            toastStr("获取录音和日历权限失败");
+                        }
+                    }
+                });
+    }
+
 
     public void screenshot(View v) { //截屏
+
+        boolean granted = XXPermissions.isGranted(this, Permission.Group.STORAGE);
+        if (!granted) {
+            XXPermissions.with(this).permission(Permission.Group.STORAGE).request(null);
+            return;
+        }
         try {
             // 获取当前手机窗口
             View view = getWindow().getDecorView().getRootView();
@@ -123,7 +190,18 @@ public class MainActivity extends Activity {
 
     @SuppressLint("MissingPermission")
     public void deletePhoneRecord(View v) {
-        getContentResolver().delete(android.provider.CallLog.Calls.CONTENT_URI, null, null); //删除通话记录
+
+        boolean granted = XXPermissions.isGranted(this, Permission.WRITE_CALL_LOG);
+        if (!granted) {
+            XXPermissions.with(this).permission(Permission.WRITE_CALL_LOG).request(null);
+            return;
+        }
+        int delete = getContentResolver().delete(CallLog.Calls.CONTENT_URI, null, null);//删除通话记录
+        if (delete != -1) {
+            toastStr("删除通话记录成功");
+        }
+
+
     }
 
     public void blueTooth(View v) { //蓝牙
@@ -160,6 +238,11 @@ public class MainActivity extends Activity {
 
 
     public void takePhoto(View view) {  //相机
+        boolean granted = XXPermissions.isGranted(this, Permission.WRITE_EXTERNAL_STORAGE, Permission.CAMERA);
+        if (!granted) {
+            XXPermissions.with(this).permission(Permission.WRITE_EXTERNAL_STORAGE, Permission.CAMERA).request(null);
+            return;
+        }
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         String filePath = Environment.getExternalStorageDirectory().getPath() + "/DCIM" + "/takePhoto.png";
         Uri fileUri = null;
@@ -193,12 +276,18 @@ public class MainActivity extends Activity {
 
 
     public void sendMessage(View view) { //发送短信
+
         Intent intent = new Intent(Intent.ACTION_VIEW);
         intent.setType("vnd.android-dir/mms-sms");
         startActivity(intent);
     }
 
     public void getMessage(View view) {//获取短信
+        boolean granted = XXPermissions.isGranted(this, Permission.READ_SMS);
+        if (!granted) {
+            XXPermissions.with(this).permission(Permission.READ_SMS).request(null);
+            return;
+        }
         startActivity(new Intent(this, SmsActivity.class));
     }
 
@@ -207,18 +296,25 @@ public class MainActivity extends Activity {
     }
 
     public void getGPS(View view) {
+        boolean granted = XXPermissions.isGranted(this, Permission.ACCESS_FINE_LOCATION);
+        if (!granted) {
+            XXPermissions.with(this).permission(Permission.ACCESS_FINE_LOCATION).request(null);
+            return;
+        }
         startActivity(new Intent(this, MapActivity.class));
     }
 
     public void getCall(View view) {//获取通讯录信息
-
+        boolean granted = XXPermissions.isGranted(this, Permission.READ_CONTACTS, Permission.READ_CALL_LOG);
+        if (!granted) {
+            XXPermissions.with(this).permission(Permission.READ_CONTACTS, Permission.READ_CALL_LOG).request(null);
+            return;
+        }
         startActivity(new Intent(this, ContactsActivity.class));
 
     }
 
     public void call(View view) {//拨打电话
-
-
         Intent intent = new Intent(this, ContactsActivity.class);
         intent.putExtra("type", 1);
         startActivity(intent);

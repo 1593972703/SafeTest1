@@ -27,6 +27,7 @@ public class SmsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_sms);
 
+
         TextView textView = findViewById(R.id.text);
         try {
             textView.setText(getSmsInPhone());

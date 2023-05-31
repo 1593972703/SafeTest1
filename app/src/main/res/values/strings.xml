@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">My Application</string>
+    <string name="app_name">测评Demo</string>
 
     <string name="title_view_root">ViewRoot</string>
     <string name="title_view_group_1">ViewGroup_1</string>
